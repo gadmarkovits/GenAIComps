@@ -7,7 +7,7 @@ from opea_haystack.utils import url_validation, OPEABackend
 
 from .truncate import EmbeddingTruncateMode
 
-_DEFAULT_API_URL = "http://localhost:6000/v1/embeddings"
+_DEFAULT_API_URL = "http://localhost:6000/embed"
 
 @component
 class OPEADocumentEmbedder:
@@ -21,8 +21,8 @@ class OPEADocumentEmbedder:
 
     doc = Document(content="I love pizza!")
 
-    text_embedder = OPEADocumentEmbedder(api_url="http://localhost:6000")
-    text_embedder.warm_up()
+    document_embedder = OPEADocumentEmbedder(api_url="http://localhost:6000")
+    document_embedder.warm_up()
 
     result = document_embedder.run([doc])
     print(result["documents"][0].embedding)
@@ -63,7 +63,7 @@ class OPEADocumentEmbedder:
             If None the behavior is model-dependent, see the official documentation for more information.
         """
 
-        self.api_url = url_validation(api_url, _DEFAULT_API_URL, ["v1/embeddings"])
+        self.api_url = api_url
         self.prefix = prefix
         self.suffix = suffix
         self.batch_size = batch_size
@@ -141,10 +141,8 @@ class OPEADocumentEmbedder:
 
         return texts_to_embed
 
-    def _embed_batch(self, texts_to_embed: List[str], batch_size: int) -> Tuple[List[List[float]], Dict[str, Any]]:
+    def _embed_batch(self, texts_to_embed: List[str], batch_size: int) -> List[List[float]]:
         all_embeddings: List[List[float]] = []
-        usage_prompt_tokens = 0
-        usage_total_tokens = 0
 
         assert self.backend is not None
 
@@ -153,15 +151,12 @@ class OPEADocumentEmbedder:
         ):
             batch = texts_to_embed[i : i + batch_size]
 
-            sorted_embeddings, meta = self.backend.embed(batch)
+            sorted_embeddings = self.backend.embed(batch)
             all_embeddings.extend(sorted_embeddings)
 
-            usage_prompt_tokens += meta.get("usage", {}).get("prompt_tokens", 0)
-            usage_total_tokens += meta.get("usage", {}).get("total_tokens", 0)
+        return all_embeddings
 
-        return all_embeddings, {"usage": {"prompt_tokens": usage_prompt_tokens, "total_tokens": usage_total_tokens}}
-
-    @component.output_types(documents=List[Document], meta=Dict[str, Any])
+    @component.output_types(documents=List[Document])
     def run(self, documents: List[Document]):
         """
         Embed a list of Documents.
@@ -173,7 +168,6 @@ class OPEADocumentEmbedder:
         :returns:
             A dictionary with the following keys and values:
             - `documents` - List of processed Documents with embeddings.
-            - `meta` - Metadata on usage statistics, etc.
         :raises RuntimeError:
             If the component was not initialized.
         :raises TypeError:
@@ -195,8 +189,8 @@ class OPEADocumentEmbedder:
                 raise ValueError(msg)
             
         texts_to_embed = self._prepare_texts_to_embed(documents)
-        embeddings, metadata = self._embed_batch(texts_to_embed, self.batch_size)
+        embeddings = self._embed_batch(texts_to_embed, self.batch_size)
         for doc, emb in zip(documents, embeddings):
             doc.embedding = emb
 
-        return {"documents": documents, "meta": metadata}
+        return {"documents": documents}

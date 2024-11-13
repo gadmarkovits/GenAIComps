@@ -23,14 +23,13 @@ class OPEABackend:
         self.api_url = api_url
         self.model_kwargs = model_kwargs or {}
 
-    def embed(self, text: List[str]) -> Tuple[List[List[float]], Dict[str, Any]]:
-        url = f"{self.api_url}/embeddings"
-
+    def embed(self, inputs: List[str]) -> Tuple[List[List[float]], Dict[str, Any]]:
+        url = f"{self.api_url}/embed"
         try:
             res = self.session.post(
                 url,
                 json={
-                    "text": text,
+                    "inputs": inputs,
                     **self.model_kwargs,
                 },
                 timeout=REQUEST_TIMEOUT,
@@ -40,8 +39,6 @@ class OPEABackend:
                 msg = f"Failed to query embedding endpoint: Error - {e.response.text}"
                 raise ValueError(msg) from e
         
-        data = res.json()
-        embedding = data['embedding']
-        del data['embedding']
+        result = res.json()
 
-        return embedding, data
+        return result

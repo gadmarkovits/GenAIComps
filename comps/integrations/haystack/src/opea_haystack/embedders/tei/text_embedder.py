@@ -6,7 +6,7 @@ from opea_haystack.utils import url_validation, OPEABackend
 
 from .truncate import EmbeddingTruncateMode
 
-_DEFAULT_API_URL = "http://localhost:6000/v1/embeddings"
+_DEFAULT_API_URL = "http://localhost:6000/embed"
 
 
 @component
@@ -52,7 +52,7 @@ class OPEATextEmbedder:
             If None the behavior is model-dependent, see the official documentation for more information.
         """
 
-        self.api_url = url_validation(api_url, _DEFAULT_API_URL, ["v1/embeddings"])
+        self.api_url = api_url
         self.prefix = prefix
         self.suffix = suffix
 
@@ -107,37 +107,38 @@ class OPEATextEmbedder:
         """
         return default_from_dict(cls, data)
 
-    @component.output_types(embedding=List[float], metadata=Dict[str, Any])
-    def run(self, text: str):
+    @component.output_types(embedding=List[float])
+    def run(self, inputs: Union[str, List[str]]):
         """
-        Embed a string.
+        Embed a string or list of strings.
 
-        :param text:
-            The text to embed.
+        :param inputs:
+            The text(s) to embed.
         :returns:
             A dictionary with the following keys and values:
-            - `embedding` - Embeddng of the text.
-            - `meta` - Metadata on usage statistics, etc.
+            - `embeddings` - Embeddngs of the text(s).
         :raises RuntimeError:
             If the component was not initialized.
         :raises TypeError:
-            If the input is not a string.
+            If the input is not a string or list of strings.
         """
         if not self._initialized:
             msg = "The embedding model has not been loaded. Please call warm_up() before running."
             raise RuntimeError(msg)
-        elif not isinstance(text, str):
+        elif not isinstance(inputs, (str, list)):
             msg = (
-                "OPEATextEmbedder expects a string as an input."
+                "OPEATextEmbedder expects a string or list of strings as an input."
                 "In case you want to embed a list of Documents, please use the OPEADocumentEmbedder."
             )
             raise TypeError(msg)
-        elif not text:
+        elif not inputs:
             msg = "Cannot embed an empty string."
             raise ValueError(msg)
         
         assert self.backend is not None
-        text_to_embed = self.prefix + text + self.suffix
-        embedding, meta = self.backend.embed(text_to_embed)
+        if isinstance(inputs, str):
+            inputs = [inputs]
+        text_to_embed = [self.prefix + text + self.suffix for text in inputs]
+        embedding = self.backend.embed(text_to_embed)
 
-        return {"emebdding": embedding, "meta": meta}
+        return {"emebddings": embedding}
