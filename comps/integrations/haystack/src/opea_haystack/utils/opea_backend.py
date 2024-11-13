@@ -42,3 +42,51 @@ class OPEABackend:
         result = res.json()
 
         return result
+
+    def generate(self, prompt: str) -> Tuple[List[str], List[Dict[str, Any]]]:
+        url = f"{self.api_url}/chat/completions"
+
+        try:
+            res = self.session.post(
+                url,
+                json={
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        },
+                    ],
+                    **self.model_kwargs,
+                },
+                timeout=REQUEST_TIMEOUT,
+            )
+            res.raise_for_status()
+        except requests.HTTPError as e:
+            msg = f"Failed to query chat completion endpoint: Error - {e.response.text}"
+            raise ValueError(msg) from e
+
+        completions = res.json()
+        choices = completions["choices"]
+        # Sort the choices by index, we don't know whether they're out of order or not
+        choices.sort(key=lambda c: c["index"])
+        replies = []
+        meta = []
+        for choice in choices:
+            message = choice["message"]
+            replies.append(message["content"])
+            choice_meta = {
+                "role": message["role"],
+                "usage": {
+                    "prompt_tokens": completions["usage"]["prompt_tokens"],
+                    "total_tokens": completions["usage"]["total_tokens"],
+                },
+            }
+            # These fields could be null, the others will always be present
+            if "finish_reason" in choice:
+                choice_meta["finish_reason"] = choice["finish_reason"]
+            if "completion_tokens" in completions["usage"]:
+                choice_meta["usage"]["completion_tokens"] = completions["usage"]["completion_tokens"]
+
+            meta.append(choice_meta)
+
+        return replies, meta
