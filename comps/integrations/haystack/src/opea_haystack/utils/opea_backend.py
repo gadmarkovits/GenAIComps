@@ -44,7 +44,7 @@ class OPEABackend:
         return result
 
     def generate(self, prompt: str) -> Tuple[List[str], List[Dict[str, Any]]]:
-        url = f"{self.api_url}/chat/completions"
+        url = f"{self.api_url}/v1/chat/completions"
 
         try:
             res = self.session.post(
