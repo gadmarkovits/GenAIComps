@@ -129,4 +129,4 @@ class OPEATextEmbedder:
         text_to_embed = [self.prefix + text + self.suffix for text in texts]
         embedding = self.backend.embed(text_to_embed)
 
-        return {"emebdding": embedding}
+        return {"embedding": embedding}
