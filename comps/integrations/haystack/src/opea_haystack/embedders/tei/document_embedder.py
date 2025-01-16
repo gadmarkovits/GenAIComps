@@ -1,13 +1,13 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from haystack import Document, component, default_from_dict, default_to_dict
+from haystack import Document, component, default_to_dict
 from tqdm import tqdm
 
 from opea_haystack.utils import url_validation, OPEABackend
 
 from .truncate import EmbeddingTruncateMode
 
-_DEFAULT_API_URL = "http://localhost:6000/embed"
+_DEFAULT_API_URL = "http://localhost:6006/embed"
 
 @component
 class OPEADocumentEmbedder:
@@ -17,11 +17,12 @@ class OPEADocumentEmbedder:
 
     Usage example:
     ```python
+    from haystack import Document
     from opea_haystack.embedders.tei import OPEADocumentEmbedder
 
     doc = Document(content="I love pizza!")
 
-    document_embedder = OPEADocumentEmbedder(api_url="http://localhost:6000")
+    document_embedder = OPEADocumentEmbedder(api_url="http://localhost:6006")
     document_embedder.warm_up()
 
     result = document_embedder.run([doc])
@@ -104,8 +105,6 @@ class OPEADocumentEmbedder:
         """
         return default_to_dict(
             self,
-            api_key=self.api_key.to_dict() if self.api_key else None,
-            model=self.model,
             api_url=self.api_url,
             prefix=self.prefix,
             suffix=self.suffix,
@@ -115,18 +114,6 @@ class OPEADocumentEmbedder:
             embedding_separator=self.embedding_separator,
             truncate=str(self.truncate) if self.truncate is not None else None,
         )
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "OPEADocumentEmbedder":
-        """
-        Deserializes the component from a dictionary.
-
-        :param data:
-            The dictionary to deserialize from.
-        :returns:
-            The deserialized component.
-        """
-        return default_from_dict(cls, data)
 
     def _prepare_texts_to_embed(self, documents: List[Document]) -> List[str]:
         texts_to_embed = []

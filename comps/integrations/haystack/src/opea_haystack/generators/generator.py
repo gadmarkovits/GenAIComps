@@ -1,7 +1,7 @@
 import warnings
 from typing import Any, Dict, List, Optional
 
-from haystack import component, default_from_dict, default_to_dict
+from haystack import component
 
 from opea_haystack.utils import url_validation, OPEABackend
 
@@ -31,7 +31,7 @@ class OPEAGenerator:
     result = generator.run(prompt="What is the answer?")
     print(result["replies"])
     print(result["meta"])
-    print(result["usage"])
+    print(result["meta"]["usage"])
     ```
 
     """
@@ -68,32 +68,6 @@ class OPEAGenerator:
             api_url=self._api_url,
             model_kwargs=self._model_arguments,
         )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Serializes the component to a dictionary.
-
-        :returns:
-            Dictionary with serialized data.
-        """
-        return default_to_dict(
-            self,
-            api_url=self._api_url,
-            model_arguments=self._model_arguments,
-        )
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "OPEAGenerator":
-        """
-        Deserializes the component from a dictionary.
-
-        :param data:
-            Dictionary to deserialize from.
-        :returns:
-           Deserialized component.
-        """
-        init_params = data.get("init_parameters", {})
-        return default_from_dict(cls, data)
 
     @component.output_types(replies=List[str], meta=List[Dict[str, Any]])
     def run(self, prompt: str):
