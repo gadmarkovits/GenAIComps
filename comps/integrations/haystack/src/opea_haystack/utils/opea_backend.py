@@ -24,12 +24,12 @@ class OPEABackend:
         self.model_kwargs = model_kwargs or {}
 
     def embed(self, inputs: List[str]) -> Tuple[List[List[float]], Dict[str, Any]]:
-        url = f"{self.api_url}/embed"
+        url = f"{self.api_url}/embeddings"
         try:
             res = self.session.post(
                 url,
                 json={
-                    "inputs": inputs,
+                    "input": inputs,
                     **self.model_kwargs,
                 },
                 timeout=REQUEST_TIMEOUT,
@@ -41,7 +41,12 @@ class OPEABackend:
         
         result = res.json()
 
-        return result
+        embedding = [item['embedding'] for item in result['data']]
+
+        del result['data']
+        del result['object']
+        meta = result
+        return embedding, meta
 
     def generate(self, prompt: str) -> Tuple[List[str], List[Dict[str, Any]]]:
         url = f"{self.api_url}/v1/chat/completions"

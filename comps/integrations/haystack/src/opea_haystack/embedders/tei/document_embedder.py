@@ -1,13 +1,15 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
-from haystack import Document, component, default_to_dict
+from haystack import Document, component, default_to_dict, logging
 from tqdm import tqdm
 
-from opea_haystack.utils import url_validation, OPEABackend
+from opea_haystack.utils import OPEABackend
 
 from .truncate import EmbeddingTruncateMode
 
-_DEFAULT_API_URL = "http://localhost:6006/embed"
+logger = logging.getLogger(__name__)
+
+_DEFAULT_API_URL = "http://localhost:6006"
 
 @component
 class OPEADocumentEmbedder:
@@ -130,6 +132,7 @@ class OPEADocumentEmbedder:
 
     def _embed_batch(self, texts_to_embed: List[str], batch_size: int) -> List[List[float]]:
         all_embeddings: List[List[float]] = []
+        meta: Dict[str, Any] = {}
 
         assert self.backend is not None
 
@@ -138,10 +141,18 @@ class OPEADocumentEmbedder:
         ):
             batch = texts_to_embed[i : i + batch_size]
 
-            sorted_embeddings = self.backend.embed(batch)
+            sorted_embeddings, metadata = self.backend.embed(batch)
             all_embeddings.extend(sorted_embeddings)
 
-        return all_embeddings
+            if "model" not in meta:
+                meta["model"] = metadata["model"]
+            if "usage" not in meta:
+                meta["usage"] = dict(metadata["usage"])
+            else:
+                meta["usage"]["prompt_tokens"] += metadata["usage"]["prompt_tokens"]
+                meta["usage"]["total_tokens"] += metadata["usage"]["total_tokens"]
+
+        return all_embeddings, meta
 
     @component.output_types(documents=List[Document])
     def run(self, documents: List[Document]):
@@ -155,6 +166,7 @@ class OPEADocumentEmbedder:
         :returns:
             A dictionary with the following keys and values:
             - `documents` - List of processed Documents with embeddings.
+            - `meta` - Metadata on usage statistics, etc.
         :raises RuntimeError:
             If the component was not initialized.
         :raises TypeError:
@@ -172,12 +184,12 @@ class OPEADocumentEmbedder:
 
         for doc in documents:
             if not doc.content:
-                msg = f"Document '{doc.id}' has no content to embed."
-                raise ValueError(msg)
+                logger.warning(f"Document '{doc.id}' has no content to embed.")
+
             
         texts_to_embed = self._prepare_texts_to_embed(documents)
-        embeddings = self._embed_batch(texts_to_embed, self.batch_size)
+        embeddings, metadata = self._embed_batch(texts_to_embed, self.batch_size)
         for doc, emb in zip(documents, embeddings):
             doc.embedding = emb
 
-        return {"documents": documents}
+        return {"documents": documents, "meta": metadata}

@@ -2,11 +2,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from haystack import component, default_to_dict
 
-from opea_haystack.utils import url_validation, OPEABackend
+from opea_haystack.utils import OPEABackend
 
 from .truncate import EmbeddingTruncateMode
 
-_DEFAULT_API_URL = "http://localhost:6006/embed"
+_DEFAULT_API_URL = "http://localhost:6006"
 
 
 @component
@@ -113,7 +113,7 @@ class OPEATextEmbedder:
         if not self._initialized:
             msg = "The embedding model has not been loaded. Please call warm_up() before running."
             raise RuntimeError(msg)
-        elif not isinstance(text, (str, list)):
+        elif not isinstance(text, (str, list)) or (isinstance(text, list) and not isinstance(text[0], str)):
             msg = (
                 "OPEATextEmbedder expects a string or list of strings as an input."
                 "In case you want to embed a list of Documents, please use the OPEADocumentEmbedder."
@@ -125,8 +125,8 @@ class OPEATextEmbedder:
         
         assert self.backend is not None
         if isinstance(text, str):
-            texts = [text]
-        text_to_embed = [self.prefix + text + self.suffix for text in texts]
-        embedding = self.backend.embed(text_to_embed)
-
-        return {"embedding": embedding}
+            text = [text]
+        
+        text_to_embed = [self.prefix + t + self.suffix for t in text]
+        embedding, metadata = self.backend.embed(text_to_embed)
+        return {"embedding": embedding, "meta": metadata}
