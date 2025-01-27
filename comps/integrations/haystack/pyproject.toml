@@ -27,3 +27,10 @@ dependencies = ["haystack-ai"]
 
 [tool.hatch.version]
 path = "src/opea_haystack/__about__.py"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+markers = [
+  "integration: integration tests",
+]
+log_cli = 1
